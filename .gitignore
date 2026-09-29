@@ -73,3 +73,6 @@ Hackhaton_vault/
 *.db
 *.sqlite3
 .ruff_cache/
+
+# Configuracion local de la CLI de Vercel
+.vercel/

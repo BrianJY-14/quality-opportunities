@@ -204,6 +204,36 @@ El mecanismo de evaluación cambia con la disciplina: software puede utilizar **
 
 ---
 
+## 6. Ejecución local
+
+```bash
+# Backend (Python 3.11 a 3.13)
+cd backend
+python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cp .env.example .env                                    # Windows: copy .env.example .env
+alembic upgrade head && python seed.py
+uvicorn app.main:app --reload                           # http://localhost:8000/docs
+
+# Frontend (Node 20 o superior), en otra terminal
+cd Quality-Oportunities-app
+npm ci
+VITE_API_URL=http://localhost:8000 npm run dev          # Windows: $env:VITE_API_URL="http://localhost:8000"; npm run dev
+```
+
+Cuenta de demostración: `carlos@uni.pe` / `demo12345`. Sin `LLM_API_KEY` las funciones de IA corren en modo reglas y lo indican en pantalla.
+
+## 7. Continuación posterior al hackatón
+
+Después del evento, Brian Jara (backend) continuó el proyecto con:
+
+- **Integración de LLM** mediante un cliente común compatible con OpenAI: AI Pedagogical Scoper, Juez IA de arquitectura, Tutor IA, defensa técnica calificada por el modelo y resumen del CV (ADR-007).
+- **CV dinámico** con grafo de aptitudes enlazado a credenciales, y **leaderboard** por XP ponderada (Cachimbo → Oráculo Tech).
+- **Corrección de las evaluaciones que quedaban en `EN_EJECUCION`** durante la demo (ADR-008).
+- **Frontend** unificado sobre el sistema visual `qo-*`.
+
+---
+
 **Créditos — SinergIA**  
 [Manuel Aranda (Manu)](https://github.com/MizardB) · [Miguel](https://github.com/Miguel-Ghost) · [Brian](https://github.com/BrianJY-14) · [Alex](https://github.com/josealexandromartinezcox-stack)
 

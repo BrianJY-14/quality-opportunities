@@ -9,6 +9,9 @@ on:
 
 jobs:
   ping:
+    # Sin la variable BACKEND_URL (Settings -> Variables) el job no corre: en un fork o copia
+    # personal no gasta minutos de Actions pingueando una URL vacia.
+    if: ${{ vars.BACKEND_URL != '' }}
     runs-on: ubuntu-latest
     steps:
       - run: curl -fsS "${{ vars.BACKEND_URL }}/health" || echo "sin respuesta"

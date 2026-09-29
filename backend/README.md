@@ -1,6 +1,7 @@
 # Backend
 
-API del proyecto. Python 3.12 + FastAPI + SQLAlchemy 2.0 + PostgreSQL.
+API del proyecto. Python 3.11 a 3.13 + FastAPI + SQLAlchemy 2.0 + PostgreSQL. Las funciones de IA
+usan un LLM con API compatible con OpenAI (Groq por defecto) y funcionan en modo reglas sin clave.
 
 ## Ejecutar en local
 
@@ -14,7 +15,8 @@ python seed.py                                        # datos de demostracion
 uvicorn app.main:app --reload
 ```
 
-Sin configurar nada corre sobre SQLite. Para Postgres basta cambiar `DATABASE_URL` por la
+Sin configurar nada corre sobre SQLite y con las funciones de IA en modo reglas. Para activar el
+modelo basta poner `LLM_API_KEY` en `.env` (clave gratuita en <https://console.groq.com/keys>). Para Postgres basta cambiar `DATABASE_URL` por la
 cadena del **Session pooler** de Supabase (host `aws-...pooler.supabase.com`, puerto 5432).
 La conexion directa es IPv6 y no la alcanzan los PaaS gratuitos.
 
@@ -32,7 +34,7 @@ Los cuatro comandos que corre CI en cada push a `main`:
 ruff check .            # linter
 ruff format --check .   # formato
 alembic check           # las migraciones estan al dia con los modelos
-pytest                  # 35 pruebas: flujo completo, errores, editor y evaluador
+pytest                  # 54 pruebas: flujo completo, errores, editor, evaluador, IA y robustez
 ```
 
 Las pruebas aplican el esquema con Alembic, no con `create_all`: una migracion desincronizada
