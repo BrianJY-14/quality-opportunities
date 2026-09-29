@@ -21,6 +21,20 @@ Las capturas de excepciones de `_procesar` ya existian. Quedaban tres huecos que
    gratuito, y el trabajo a medias desaparece sin que nadie cierre la fila.
 3. **Excepciones fuera del bloque del evaluador** (persistir resultados, dictaminar, emitir).
 
+### Causa raiz, confirmada despues
+
+Ejecutando la suite contra PostgreSQL, el camino feliz del codigo del hackaton termina con
+"la evaluacion no termino a tiempo". Al aprobar, `certificacion.emitir` bloqueaba la participacion
+con `SELECT ... FOR UPDATE`, pero `Participacion.reto` se carga con `LEFT OUTER JOIN`
+(`lazy="joined"`) y PostgreSQL responde `FOR UPDATE cannot be applied to the nullable side of an
+outer join`. Esa excepcion no era `ErrorDominio`, escapaba de `_procesar` antes del `commit`, y los
+resultados ya escritos se descartaban: evaluacion en `EN_EJECUCION` con 0 resultados, justo lo que
+se vio en la demo. Las no aprobadas no emiten, por eso si terminaban. SQLite ignora `FOR UPDATE`, asi
+que la suite local nunca lo mostro.
+
+Correccion: la consulta de bloqueo no carga relaciones (`lazyload("*")`) y bloquea solo la fila de
+participacion (`FOR UPDATE OF participacion`). CI corre ahora la suite tambien sobre PostgreSQL.
+
 ## Decision
 
 - `request_timeout=45` en la creacion del sandbox.
