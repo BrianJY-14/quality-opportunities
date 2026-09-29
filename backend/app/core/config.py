@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://api.groq.com/openai/v1"
     LLM_MODEL: str = "llama-3.3-70b-versatile"
     LLM_TIMEOUT_S: float = 40.0
+    # Modelos a probar, en orden, si el principal falla (limite de uso, caida, respuesta invalida).
+    # En Groq cada modelo tiene su propia cuota, asi que uno pequeno sirve de respaldo real.
+    LLM_MODELOS_RESPALDO: str = "llama-3.1-8b-instant"
     # Limite de caracteres de codigo que se envia al modelo en una sola peticion.
     LLM_MAX_CODIGO: int = 24000
     # Solo la necesita EVALUADOR=e2b. Vacia con el evaluador simulado, que no sale a la red.

@@ -134,7 +134,7 @@ def generar(db: Session, entrega: Entrega, cliente=None) -> Defensa:
         reto = entrega.participacion.reto
         try:
             datos = cliente.json(
-                INSTRUCCIONES_PREGUNTAS,
+                INSTRUCCIONES_PREGUNTAS + llm.AVISO_CODIGO,
                 f"Reto: {reto.titulo}\n{reto.descripcion_publica[:1200]}\n\nCodigo entregado:\n"
                 f"{llm.codigo_para_prompt(archivos, 16000)}",
                 max_tokens=1200,
@@ -205,7 +205,7 @@ def responder(db: Session, defensa: Defensa, respuestas: list[dict], cliente=Non
         )
         try:
             datos = cliente.json(
-                INSTRUCCIONES_CALIFICACION,
+                INSTRUCCIONES_CALIFICACION + llm.AVISO_CODIGO,
                 f"{bloques}\n\nCodigo entregado:\n{llm.codigo_para_prompt(archivos, 14000)}",
                 max_tokens=1000,
                 temperatura=0.1,

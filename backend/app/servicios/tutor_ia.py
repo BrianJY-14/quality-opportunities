@@ -102,7 +102,7 @@ def consultar(usuario_id: str, reto, archivos: list[dict], revision: int, pregun
         f"Codigo guardado (revision {revision}):\n{llm.codigo_para_prompt(archivos, 16000)}"
     )
     try:
-        datos = cliente.json(INSTRUCCIONES, mensaje, max_tokens=1000, temperatura=0.4)
+        datos = cliente.json(INSTRUCCIONES + llm.AVISO_CODIGO, mensaje, max_tokens=1000, temperatura=0.4)
     except Exception as error:  # noqa: BLE001
         log.warning("el tutor IA no respondio", extra={"causa": type(error).__name__})
         base["respuesta"] = "El modelo no respondio ahora; se muestran solo los diagnosticos estaticos."
