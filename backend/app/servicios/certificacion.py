@@ -11,7 +11,7 @@ import secrets
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, lazyload
 
 from app.core.config import get_settings
 from app.core.errors import ErrorDominio
@@ -88,9 +88,16 @@ def emitir(db: Session, evaluacion: Evaluacion) -> Credencial:
 
     entrega = evaluacion.entrega
     # RN-CRED-01: la evaluacion sustentadora procede de una entrega de la misma participacion.
-    consulta = select(Participacion).where(Participacion.id == entrega.participacion_id)
-    if db.bind.dialect.name != "sqlite":  # SQLite no soporta FOR UPDATE
-        consulta = consulta.with_for_update()
+    #
+    # `Participacion.reto` se carga con LEFT OUTER JOIN (lazy="joined"), y PostgreSQL rechaza
+    # FOR UPDATE sobre el lado anulable de un outer join. Por eso la consulta de bloqueo no carga
+    # relaciones (lazyload) y bloquea solo la fila de participacion (FOR UPDATE OF). Sin esto, en
+    # produccion toda evaluacion APROBADA fallaba al emitir y quedaba en EN_EJECUCION sin
+    # resultados: era el bloqueo que se vio en la demo del hackaton. SQLite no soporta FOR UPDATE,
+    # por eso la suite local no lo detectaba; el job backend-postgres de CI la corre sobre PostgreSQL.
+    consulta = select(Participacion).where(Participacion.id == entrega.participacion_id).options(lazyload("*"))
+    if db.bind.dialect.name != "sqlite":
+        consulta = consulta.with_for_update(of=Participacion)
     participacion = db.scalar(consulta)
 
     if (ya := credencial_vigente(db, participacion.id)) is not None:
