@@ -7,6 +7,10 @@ os.environ.setdefault("JWT_SECRET", "clave-de-prueba")
 # una prueba automatica no debe crear sandboxes remotos, gastar creditos ni depender de la red.
 # Una variable del entorno gana sobre el .env, asi que basta con fijarla aqui.
 os.environ["EVALUADOR"] = "simulado"
+# Lo mismo con el modelo de lenguaje: aunque el .env local tenga LLM_API_KEY, la suite no llama al
+# proveedor. Las pruebas de IA inyectan un doble con `llm.establecer_cliente`.
+os.environ["LLM_API_KEY"] = ""
+os.environ["PREPARADOR"] = "reglas"
 
 import pytest  # noqa: E402
 from alembic.config import Config  # noqa: E402

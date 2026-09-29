@@ -21,9 +21,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"seed.py" = ["T20"]        # es un script: imprime lo que sembro
+"seed.py" = ["T20"]
+"seed_ia.py" = ["T20", "E501"]        # es un script: imprime lo que sembro
 "verificar_e2b.py" = ["T20"]  # script de comprobacion: su salida ES la evidencia
 "tests/*" = ["E501"]
+# Las instrucciones de los modelos son texto literal con ejemplos JSON: partirlas en lineas de 120
+# cambiaria lo que recibe el modelo.
+"app/servicios/{preparador_llm,juez_ia,tutor_ia,defensa_ia,cv}.py" = ["E501"]
 # conftest fija variables de entorno ANTES de importar la aplicacion: los imports van despues
 # de codigo a proposito (de ahi los `# noqa: E402`) y reordenarlos rompe esa precondicion.
 "tests/conftest.py" = ["E501", "I001"]
