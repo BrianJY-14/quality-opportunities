@@ -1,137 +1,114 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import { useAuthContext } from '../../context/AuthContext.jsx';
 
-export default function LoginForm({ onLogin }) {
+/** Formulario de ingreso con las clases de la tarjeta de la maqueta (scope .qo-login). */
+export default function LoginForm({ onLogin, onCrearCuenta, Sim }) {
+  const { login, status, error } = useAuthContext();
+  const [tipo, setTipo] = useState('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [mantenerSesion, setMantenerSesion] = useState(true);
-  const { login, status, error } = useAuthContext();
+  const [ver, setVer] = useState(false);
 
   useEffect(() => {
-    if (status === 'success') {
-      onLogin?.();
-    }
+    if (status === 'success') onLogin?.();
   }, [status, onLogin]);
 
-  const handleSubmit = (e) => {
+  // La misma cuenta puede ser estudiante y representante: el selector solo sugiere la cuenta demo.
+  const elegir = (valor) => {
+    setTipo(valor);
+    setEmail(valor === 'student' ? 'carlos@uni.pe' : 'representante@ejemplo.pe');
+  };
+
+  const enviar = (e) => {
     e.preventDefault();
     login({ email, password });
   };
 
   return (
-    <div className="relative w-full max-w-md mx-auto">
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-secondary to-tertiary rounded-xl opacity-20 group-hover:opacity-35 blur transition duration-500"></div>
-      <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden p-space-lg sm:p-space-xl flex flex-col gap-space-lg">
-        <div className="flex flex-col items-center text-center">
-          <img
-            alt="Quality Opportunities Logo"
-            className="h-10 mx-auto mb-space-sm object-contain"
-            src="https://lh3.googleusercontent.com/aida/AEtjO1XDbkFnd29m5rcC2hWQoTFS_XVbzlMHlSA1gUFSuxK3Yk7kzwD9n46_TqluMwpakP6CA60yumreubjNCOYIxZpUnbRIhWLHR9psR2oK411x9SnVw4_-4amlhDLQapzmF4jvLtgH4MFXw7llJlFZ8MvhSxQR5ta_Hr5Qs7sHmlbrVr9yssg4Y-oJ-zb2M-hTYmInK367ukJ2RYWuU1lhFS6-jQ6GBZFYfHpb0Fn0Uqef5seKjSxvzHPk62Du"
-          />
-          <h1 className="font-headline-md text-headline-md text-on-surface uppercase tracking-tight">
-            ACCESO AL SISTEMA
-          </h1>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-space-2xs">
-            Ingresa tus credenciales para continuar al entorno de aprendizaje técnico
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-space-md">
-          <div className="flex flex-col gap-space-2xs">
-            <div className="flex justify-between items-center">
-              <label className="font-label-caps text-label-caps text-on-surface uppercase tracking-wider flex items-center gap-1" htmlFor="email">
-                <span className="material-symbols-outlined text-[14px] text-primary">alternate_email</span>
-                CORREO ELECTRÓNICO
-              </label>
-              <span className="font-code-sm text-code-sm text-outline" id="domain-hint">@qualityopportunities.app</span>
-            </div>
-            <div className="relative flex items-center">
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-surface-container-low text-on-surface placeholder:text-outline font-code-md text-code-md px-space-md py-3 rounded-lg outline-none transition-all shadow-inner focus:bg-surface-container"
-                placeholder="usuario@qualityopportunities.app"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-space-2xs">
-            <div className="flex justify-between items-center">
-              <label className="font-label-caps text-label-caps text-on-surface uppercase tracking-wider flex items-center gap-1" htmlFor="password">
-                <span className="material-symbols-outlined text-[14px] text-primary">key</span>
-                CONTRASEÑA
-              </label>
-              <a className="font-code-sm text-code-sm text-primary hover:underline transition-colors" href="#">
-                ¿Olvidaste tu contraseña?
-              </a>
-            </div>
-            <div className="relative flex items-center">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-container-low text-on-surface placeholder:text-outline font-code-md text-code-md px-space-md py-3 pr-10 rounded-lg outline-none transition-all shadow-inner focus:bg-surface-container"
-                placeholder="••••••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 text-on-surface-variant hover:text-on-surface flex items-center transition-colors"
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-space-2xs">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                checked={mantenerSesion}
-                onChange={(e) => setMantenerSesion(e.target.checked)}
-                className="w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer"
-                type="checkbox"
-              />
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Mantener sesión activa</span>
+    <>
+      <h1 id="login-title">ACCESO AL SISTEMA</h1>
+      <p className="intro">Ingresa tus credenciales para continuar al entorno de aprendizaje técnico</p>
+      <form onSubmit={enviar}>
+        <fieldset className="account-types">
+          <legend className="sr-only">Tipo de cuenta</legend>
+          {[
+            ['student', 'i-laptop', 'Estudiante', 'ACCESO INDIVIDUAL'],
+            ['organization', 'i-building', 'Organización', 'PORTAL DE RETOS'],
+          ].map(([valor, icono, nombre, detalle]) => (
+            <label className="account-option" key={valor}>
+              <input type="radio" name="account-type" value={valor} checked={tipo === valor} onChange={() => elegir(valor)} />
+              <span className="option-content">
+                <strong>
+                  <Sim id={icono} /> {nombre}
+                </strong>
+                <small>{detalle}</small>
+              </span>
             </label>
+          ))}
+        </fieldset>
+        <div className="field">
+          <div className="field-heading">
+            <label htmlFor="email">
+              <Sim id="i-mail" /> CORREO ELECTRÓNICO
+            </label>
+            <span className="field-hint">@uni.pe</span>
           </div>
-
-          <div className="flex flex-col gap-space-sm pt-space-xs">
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="w-full py-3.5 px-space-md rounded-lg bg-gradient-to-r from-primary-container via-secondary to-tertiary text-on-primary-container font-headline-sm text-headline-sm font-bold shadow-lg shadow-primary-container/20 hover:shadow-primary-container/40 active:scale-[0.99] transition duration-200 flex items-center justify-center gap-2"
-            >
-              <span>{status === 'loading' ? 'Autenticando...' : 'Ingresar'}</span>
-              {status !== 'loading' && (
-                <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
-              )}
-            </button>
-            <button
-              type="button"
-              className="w-full py-3 px-space-md rounded-lg bg-surface-container-high text-on-surface font-body-md text-body-md font-semibold hover:bg-surface-bright transition-all flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[18px] text-primary">person_add</span>
-              <span>Crear cuenta</span>
+          <input
+            className="text-input"
+            id="email"
+            type="email"
+            autoComplete="username"
+            placeholder="carlos@uni.pe"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="field">
+          <div className="field-heading">
+            <label htmlFor="password">
+              <Sim id="i-key" /> CONTRASEÑA
+            </label>
+            <button className="text-button" type="button" onClick={() => setPassword('demo12345')}>
+              Usar clave demo
             </button>
           </div>
-        </form>
-
-        {error && (
-          <p className="text-error text-body-sm font-body-sm text-center">{error}</p>
-        )}
-      </div>
-    </div>
+          <div className="password-wrap">
+            <input
+              className="text-input"
+              id="password"
+              type={ver ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="••••••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button className="password-toggle" type="button" aria-label={ver ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={ver} onClick={() => setVer((v) => !v)}>
+              <Sim id="i-eye" />
+            </button>
+          </div>
+        </div>
+        <div className="session-row">
+          <label className="remember">
+            <input type="checkbox" defaultChecked /> Mantener sesión activa
+          </label>
+          <span className="node-status">
+            <span className="status-dot" />
+            {status === 'loading' ? 'AUTENTICANDO' : 'NODE_READY'}
+          </span>
+        </div>
+        <button className="primary-button" type="submit" disabled={status === 'loading'}>
+          {status === 'loading' ? 'Autenticando…' : 'Ingresar'} <Sim id="i-arrow" />
+        </button>
+        <button className="secondary-button" type="button" onClick={onCrearCuenta}>
+          <Sim id="i-user" /> Crear cuenta
+        </button>
+        <p className="demo-message" role="status" aria-live="polite" style={{ color: '#ffb4ab', textAlign: 'center', minHeight: 20, marginTop: 12 }}>
+          {error}
+        </p>
+      </form>
+    </>
   );
 }

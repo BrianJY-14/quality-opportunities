@@ -24,6 +24,8 @@ export const token = {
 export class ErrorApi extends Error {
   constructor(codigo, mensaje, estado, detalles) {
     super(mensaje);
+    // Las paginas leen `e.mensaje`; sin esta linea siempre caian al texto generico.
+    this.mensaje = mensaje;
     this.codigo = codigo;
     this.estado = estado;
     this.detalles = detalles ?? {};
@@ -166,17 +168,66 @@ export const revocarCredencial = (identificador, motivo) =>
 export const perfilPublico = (nombrePublico) =>
   peticion(`/perfiles/${nombrePublico}`, { conToken: false });
 
+/* ------------------------------------------------------------ funciones de IA */
+
+export const estadoIA = () => peticion('/ia/estado', { conToken: false });
+
+/** Tutor IA sobre la revision GUARDADA: el editor guarda antes de consultar. */
+export const consultarTutor = (participacionId, pregunta) =>
+  peticion(`/participaciones/${participacionId}/tutor`, {
+    metodo: 'POST',
+    cuerpo: { pregunta: pregunta || null },
+  });
+
+export const revisionIA = (evaluacionId) => peticion(`/evaluaciones/${evaluacionId}/revision-ia`);
+
+export const iniciarDefensa = (entregaId) =>
+  peticion(`/entregas/${entregaId}/defensas`, { metodo: 'POST' });
+export const defensasDeEntrega = (entregaId) => peticion(`/entregas/${entregaId}/defensas`);
+export const responderDefensa = (defensaId, respuestas) =>
+  peticion(`/defensas/${defensaId}/respuestas`, { metodo: 'POST', cuerpo: { respuestas } });
+
+export const miCV = () => peticion('/auth/yo/cv');
+export const cvPublico = (nombrePublico) =>
+  peticion(`/perfiles/${encodeURIComponent(nombrePublico)}/cv`, { conToken: false });
+export const generarResumenCV = () => peticion('/auth/yo/cv/resumen', { metodo: 'POST' });
+export const actualizarPerfil = (datos) => peticion('/auth/yo/perfil', { metodo: 'PATCH', cuerpo: datos });
+
+export const ranking = (limite = 50) => peticion(`/ranking?limite=${limite}`, { conToken: false });
+
+/* ------------------------------------------------------ portal de organizacion */
+
+export const retosDeOrganizacion = (orgId) => peticion(`/organizaciones/${orgId}/retos`);
+export const solicitudesDeOrganizacion = (orgId) => peticion(`/organizaciones/${orgId}/solicitudes`);
+export const enviarSolicitud = (organizacionId, tituloOriginal, contenidoOriginal) =>
+  peticion('/solicitudes', {
+    metodo: 'POST',
+    cuerpo: {
+      organizacion_id: organizacionId,
+      titulo_original: tituloOriginal,
+      contenido_original: contenidoOriginal,
+    },
+  });
+export const verSolicitud = (id) => peticion(`/solicitudes/${id}`);
+export const verBorrador = (retoId) => peticion(`/retos/${retoId}/borrador`);
+export const corregirBorrador = (retoId, datos) =>
+  peticion(`/retos/${retoId}`, { metodo: 'PATCH', cuerpo: datos });
+export const publicarReto = (retoId) => peticion(`/retos/${retoId}/publicacion`, { metodo: 'POST' });
+export const cerrarReto = (retoId) => peticion(`/retos/${retoId}/cierre`, { metodo: 'POST' });
+
 /* --------------------------------------------------------------------- estado */
 
 export const salud = () => fetch(`${BASE}/health`).then((r) => r.json());
 export const meta = () => peticion('/meta', { conToken: false });
 
+const XP_BASE = { BASICO: 100, INTERMEDIO: 180, AVANZADO: 300 };
+
 /**
  * Adapta un reto del backend a la forma que ya usan las paginas.
  *
- * Los campos `stack`, `dificultad`, `puntos` y `metrics` de los datos de ejemplo NO existen en el
- * backend, asi que aqui llegan vacios o nulos: inventarlos seria mostrar informacion falsa. Lo que
- * si es real y conviene enseñar es cuantas pruebas tiene el reto y cuantas son obligatorias.
+ * `dificultad` y `aptitudes` ya existen en el backend (las propone el AI Scoper o la siembra).
+ * `puntos` es la XP base que da el reto en el ranking, antes del multiplicador del Juez IA.
+ * `metrics` sigue sin existir: inventarlo seria mostrar informacion falsa.
  */
 export function aRetoDeUI(reto) {
   const nombreOrg = reto.organizacion?.nombre ?? '';
@@ -194,10 +245,15 @@ export function aRetoDeUI(reto) {
     estado: reto.estado === 'PUBLICADO' ? 'abierto' : 'cerrado',
     pruebasTotales: reto.pruebas_totales,
     pruebasObligatorias: reto.pruebas_obligatorias,
-    // El chip que antes mostraba el stack se reutiliza para datos que si existen.
-    stack: [`${reto.pruebas_totales} pruebas`, `${reto.pruebas_obligatorias} obligatorias`],
-    dificultad: null,
-    puntos: null,
+    aptitudes: reto.aptitudes ?? [],
+    stack: reto.aptitudes?.length
+      ? reto.aptitudes
+      : [`${reto.pruebas_totales} pruebas`, `${reto.pruebas_obligatorias} obligatorias`],
+    habilidades: reto.aptitudes?.length
+      ? reto.aptitudes.join(' · ')
+      : `${reto.pruebas_obligatorias} de ${reto.pruebas_totales} pruebas obligatorias`,
+    dificultad: reto.dificultad ?? 'SIN NIVEL',
+    puntos: XP_BASE[reto.dificultad] ?? 150,
     metrics: null,
   };
 }

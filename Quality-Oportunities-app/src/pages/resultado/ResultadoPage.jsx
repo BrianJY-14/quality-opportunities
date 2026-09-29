@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import { verEvaluacion } from '../../service/api.js';
+import DefensaPanel from '../../components/DefensaPanel.jsx';
+import JuezIAPanel from '../../components/JuezIAPanel.jsx';
+import { Aviso, Boton, Cargando, Chip, Encabezado, Icono, Pagina, Tarjeta, Titulo } from '../../components/ui.jsx';
+import { reevaluar, verEvaluacion } from '../../service/api.js';
 
 const EN_CURSO = ['PENDIENTE', 'EN_EJECUCION'];
 
@@ -11,30 +14,53 @@ const EN_CURSO = ['PENDIENTE', 'EN_EJECUCION'];
  * finales posibles se muestran distinto, y el fallo de entorno NO se presenta como una
  * desaprobacion del estudiante.
  */
-export default function ResultadoPage({ evaluacionId, tituloReto, onVolver }) {
+export default function ResultadoPage({ evaluacionId, tituloReto, onVolver, onVerCV }) {
+  const [idActual, setIdActual] = useState(evaluacionId);
   const [evaluacion, setEvaluacion] = useState(null);
   const [error, setError] = useState(null);
+  const [agotado, setAgotado] = useState(false);
+
+  useEffect(() => setIdActual(evaluacionId), [evaluacionId]);
 
   useEffect(() => {
-    if (!evaluacionId) return undefined;
+    if (!idActual) return undefined;
     let vigente = true;
+    const inicio = Date.now();
+    setAgotado(false);
 
-    const consultar = async () => {
+    // Consulta con espera creciente y un techo: aunque el backend ya cierra las evaluaciones
+    // colgadas, la pantalla no vuelve a quedarse consultando para siempre.
+    const consultar = async (espera) => {
       try {
-        const estado = await verEvaluacion(evaluacionId);
+        const estado = await verEvaluacion(idActual);
         if (!vigente) return;
         setEvaluacion(estado);
-        if (EN_CURSO.includes(estado.estado_procesamiento)) setTimeout(consultar, 800);
+        if (!EN_CURSO.includes(estado.estado_procesamiento)) return;
+        if (Date.now() - inicio > 6 * 60 * 1000) {
+          setAgotado(true);
+          return;
+        }
+        setTimeout(() => consultar(Math.min(espera * 1.3, 5000)), espera);
       } catch (e) {
         if (vigente) setError(e);
       }
     };
-    consultar();
+    consultar(800);
 
     return () => {
       vigente = false;
     };
-  }, [evaluacionId]);
+  }, [idActual]);
+
+  const reintentar = async () => {
+    try {
+      const nueva = await reevaluar(evaluacion.entrega_id);
+      setEvaluacion(null);
+      setIdActual(nueva.evaluacion_id);
+    } catch (e) {
+      setError(e);
+    }
+  };
 
   const enCurso = evaluacion && EN_CURSO.includes(evaluacion.estado_procesamiento);
   const aprobado = evaluacion?.dictamen === 'APROBADO';
@@ -44,202 +70,144 @@ export default function ResultadoPage({ evaluacionId, tituloReto, onVolver }) {
     ? Math.round((progreso.pruebas_ejecutadas / progreso.pruebas_totales) * 100)
     : 0;
 
+  const CATEGORIA = { FUNCIONAL: 'Funcional', CASO_LIMITE: 'Caso límite', RENDIMIENTO: 'Rendimiento' };
+  const clase = errorTecnico ? 'tec' : aprobado ? 'ok' : 'no';
+  const duracion =
+    evaluacion?.momento_inicio && evaluacion?.momento_fin
+      ? Math.round((new Date(evaluacion.momento_fin) - new Date(evaluacion.momento_inicio)) / 10) / 100
+      : null;
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="w-full max-w-container-max mx-auto px-gutter-desktop py-space-xl">
-        <div className="flex flex-col gap-space-lg">
-          <button
-            onClick={onVolver}
-            className="flex items-center gap-space-xs text-on-surface-variant hover:text-on-surface transition-colors w-fit"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            <span className="font-code-sm text-code-sm">Volver al catálogo</span>
-          </button>
+    <Pagina>
+      <Boton variante="fantasma" icono="arrow_back" onClick={onVolver}>
+        Volver al catálogo
+      </Boton>
+      <Encabezado eyebrow="EVALUACIÓN // PRUEBAS OFICIALES + JUEZ IA" titulo="Resultado de la evaluación" descripcion={tituloReto} />
 
-          <div className="flex flex-col gap-space-2xs">
-            <h1 className="font-headline-lg text-headline-lg text-on-surface font-extrabold tracking-tight">
-              Resultado de la Evaluación
-            </h1>
-            {tituloReto && (
-              <p className="font-body-lg text-body-lg text-on-surface-variant">{tituloReto}</p>
-            )}
-          </div>
+      <div className="qo-stack">
+        {error && <Aviso tipo="error">{error.mensaje}</Aviso>}
+        {!evaluacion && !error && <Cargando texto="Cargando la evaluación…" />}
 
-          {error && (
-            <div className="bg-surface-container-lowest p-space-md rounded-xl border-l-4 border-error">
-              <p className="font-body-sm text-body-sm text-on-surface">{error.mensaje}</p>
-            </div>
-          )}
-
-          {!evaluacion && !error && (
-            <div className="bg-surface-container-lowest p-space-md rounded-xl">
-              <p className="font-body-sm text-body-sm text-on-surface-variant">Cargando la evaluación…</p>
-            </div>
-          )}
-
-          {enCurso && (
-            <div className="bg-surface-container-lowest p-space-md rounded-xl flex flex-col gap-space-sm">
-              <div className="flex items-center gap-space-xs">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                <span className="font-body-sm text-body-sm font-semibold text-primary">
-                  {evaluacion.estado_procesamiento === 'PENDIENTE' ? 'En cola' : 'En ejecución'}
-                </span>
-              </div>
+        {enCurso && (
+          <Tarjeta>
+            <div className="qo-actions" style={{ justifyContent: 'space-between' }}>
+              <span className="qo-actions">
+                <span className="qo-pulse" />
+                <strong>{evaluacion.estado_procesamiento === 'PENDIENTE' ? 'En cola' : 'En ejecución'}</strong>
+              </span>
               {progreso && (
-                <>
-                  <div className="flex items-center gap-space-xs font-code-sm text-code-sm">
-                    <span className="text-on-surface font-semibold">Progreso:</span>
-                    <span className="text-secondary font-bold">
-                      {progreso.pruebas_ejecutadas} / {progreso.pruebas_totales}
-                    </span>
-                    <span className="text-outline">({porcentaje}%)</span>
-                  </div>
-                  <div className="h-2 bg-surface-container rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary via-secondary to-tertiary rounded-full transition-all duration-300"
-                      style={{ width: `${porcentaje}%` }}
-                    ></div>
-                  </div>
-                </>
+                <span className="qo-meta">
+                  {progreso.pruebas_ejecutadas} / {progreso.pruebas_totales} pruebas ({porcentaje}%)
+                </span>
               )}
             </div>
-          )}
+            <div className="qo-progress">
+              <span style={{ width: `${porcentaje}%` }} />
+            </div>
+            <p className="qo-meta" style={{ marginBottom: 0 }}>
+              Al terminar las pruebas, el Juez IA revisa el código: puede sumar unos segundos.
+            </p>
+          </Tarjeta>
+        )}
 
-          {evaluacion && !enCurso && (
-            <>
-              <div
-                className={`p-space-md rounded-xl flex items-center gap-space-md ${
-                  errorTecnico
-                    ? 'bg-surface-container-lowest border-l-4 border-tertiary'
+        {agotado && (
+          <Aviso tipo="aviso">
+            La evaluación sigue en curso después de 6 minutos. Se dejó de consultar para no bloquear la pantalla; el
+            servidor la cerrará como error técnico si el entorno no responde.
+          </Aviso>
+        )}
+
+        {evaluacion && !enCurso && (
+          <>
+            <div className={`qo-veredicto ${clase}`}>
+              <Icono
+                nombre={errorTecnico ? 'build' : aprobado ? 'verified' : 'cancel'}
+                style={{ color: errorTecnico ? 'var(--qo-yellow)' : aprobado ? 'var(--qo-mint)' : '#ffb4ab' }}
+              />
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0 }}>
+                  {errorTecnico ? 'No se pudo completar la evaluación' : aprobado ? 'Aprobado' : 'No aprobado'}
+                </h2>
+                <p style={{ margin: '4px 0 0' }}>
+                  {errorTecnico
+                    ? evaluacion.detalle_error ?? 'Fallo del entorno de ejecución. No cuenta como desaprobación.'
                     : aprobado
-                      ? 'bg-surface-container-lowest border-l-4 border-secondary'
-                      : 'bg-surface-container-lowest border-l-4 border-error'
-                }`}
-              >
-                <span
-                  className={`material-symbols-outlined text-[32px] ${
-                    errorTecnico ? 'text-tertiary' : aprobado ? 'text-secondary' : 'text-error'
-                  }`}
-                >
-                  {errorTecnico ? 'build' : aprobado ? 'verified' : 'cancel'}
-                </span>
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    {errorTecnico
-                      ? 'No se pudo completar la evaluación'
-                      : aprobado
-                        ? 'Aprobado'
-                        : 'No aprobado'}
-                  </span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">
-                    {/* Un fallo del entorno no es culpa de quien entrego el codigo. */}
-                    {errorTecnico
-                      ? evaluacion.detalle_error ?? 'Fallo del entorno de ejecución. Se puede reintentar.'
-                      : aprobado
-                        ? 'La solución superó todas las pruebas obligatorias del reto.'
-                        : 'Alguna prueba obligatoria no se cumplió.'}
-                  </span>
-                </div>
+                      ? 'La solución superó todas las pruebas obligatorias del reto.'
+                      : 'Alguna prueba obligatoria no se cumplió.'}
+                </p>
               </div>
+              {errorTecnico && (
+                <Boton variante="secundario" icono="replay" onClick={reintentar}>
+                  Reevaluar
+                </Boton>
+              )}
+            </div>
 
-              {evaluacion.resultados?.length > 0 && (
-                <div className="flex flex-col gap-space-xs">
-                  <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">
-                    Pruebas ejecutadas
-                  </span>
-                  {evaluacion.resultados.map((r) => (
-                    <div
-                      key={r.prueba_id}
-                      className="bg-surface-container-lowest p-space-sm rounded-lg flex items-start gap-space-sm"
-                    >
-                      <span
-                        className={`material-symbols-outlined text-[18px] shrink-0 mt-0.5 ${
-                          r.condicion_ejecucion !== 'EJECUTADA'
-                            ? 'text-outline'
-                            : r.aprobada
-                              ? 'text-secondary'
-                              : 'text-error'
-                        }`}
-                      >
-                        {r.condicion_ejecucion !== 'EJECUTADA'
-                          ? 'remove'
-                          : r.aprobada
-                            ? 'check_circle'
-                            : 'cancel'}
-                      </span>
-                      <div className="flex flex-col flex-1 gap-space-2xs">
-                        <div className="flex flex-wrap items-center gap-space-xs">
-                          <span className="font-body-sm text-body-sm font-semibold text-on-surface">
-                            {r.prueba}
-                          </span>
-                          <span className="font-label-caps text-label-caps px-space-2xs rounded bg-surface-container-high text-on-surface-variant uppercase">
-                            {r.categoria}
-                          </span>
-                          {r.obligatoria && (
-                            <span className="font-label-caps text-label-caps px-space-2xs rounded bg-primary-container/20 text-primary uppercase">
-                              obligatoria
-                            </span>
-                          )}
+            {evaluacion.credencial && (
+              <Tarjeta className="certificate">
+                <div className="qo-certificate-art" style={{ margin: 0, minHeight: 120, '--accent': 'var(--qo-mint)' }}>
+                  <Icono nombre="workspace_premium" />
+                  <small>CREDENCIAL {evaluacion.credencial.identificador_publico}</small>
+                </div>
+                <div className="qo-cert-meta">
+                  <span>{evaluacion.credencial.vigente ? 'Vigente' : 'Revocada'} · verificable de forma pública</span>
+                  {onVerCV && (
+                    <button className="qo-btn ghost small" onClick={onVerCV}>
+                      <Icono nombre="hub" /> Ver el CV actualizado
+                    </button>
+                  )}
+                </div>
+              </Tarjeta>
+            )}
+            {aprobado && !evaluacion.credencial && <Aviso>Evaluación aprobada; emisión de la credencial pendiente.</Aviso>}
+
+            {evaluacion.resultados?.length > 0 && (
+              <Tarjeta>
+                <Titulo icono="checklist">Pruebas ejecutadas</Titulo>
+                <div className="qo-list">
+                  {evaluacion.resultados.map((r) => {
+                    const ejecutada = r.condicion_ejecucion === 'EJECUTADA';
+                    return (
+                      <div key={r.prueba_id} className="qo-row" style={{ justifyContent: 'flex-start' }}>
+                        <Icono
+                          nombre={!ejecutada ? 'remove' : r.aprobada ? 'check_circle' : 'cancel'}
+                          style={{ color: !ejecutada ? '#7f8f94' : r.aprobada ? 'var(--qo-mint)' : '#ffb4ab' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <h3>{r.prueba}</h3>
+                          <div className="qo-tags" style={{ marginTop: 6 }}>
+                            <span className="qo-tag">{CATEGORIA[r.categoria] ?? r.categoria}</span>
+                            {r.obligatoria && <span className="qo-tag cyan">obligatoria</span>}
+                            {r.duracion_ms != null && <span className="qo-tag">{r.duracion_ms} ms</span>}
+                            {r.valor_observado != null && (
+                              <span className="qo-tag">
+                                {r.valor_observado} {r.unidad}
+                              </span>
+                            )}
+                            {!ejecutada && <span className="qo-tag gold">{r.condicion_ejecucion}</span>}
+                          </div>
+                          {r.detalle && <p className="qo-meta" style={{ marginTop: 8 }}>{r.detalle}</p>}
                         </div>
-                        <div className="flex flex-wrap items-center gap-space-sm font-code-sm text-code-sm text-outline">
-                          {r.duracion_ms != null && <span>{r.duracion_ms} ms</span>}
-                          {r.valor_observado != null && (
-                            <span>
-                              {r.valor_observado} {r.unidad}
-                            </span>
-                          )}
-                          {r.condicion_ejecucion !== 'EJECUTADA' && (
-                            <span className="text-tertiary">{r.condicion_ejecucion}</span>
-                          )}
-                        </div>
-                        {r.detalle && (
-                          <span className="font-code-sm text-code-sm text-on-surface-variant">{r.detalle}</span>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              )}
+              </Tarjeta>
+            )}
 
-              {evaluacion.credencial && (
-                <div className="bg-surface-container-lowest p-space-md rounded-xl flex flex-col gap-space-xs">
-                  <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">
-                    Credencial emitida
-                  </span>
-                  <span className="font-headline-sm text-headline-sm font-bold text-secondary tracking-tight">
-                    {evaluacion.credencial.identificador_publico}
-                  </span>
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">
-                    {evaluacion.credencial.vigente ? 'Vigente' : 'Revocada'} · verificable de forma pública
-                  </span>
-                </div>
-              )}
+            <JuezIAPanel revision={evaluacion.revision_ia} />
+            {evaluacion.revision_ia && evaluacion.revision_ia.estado !== 'SIN_CODIGO' && (
+              <DefensaPanel entregaId={evaluacion.entrega_id} />
+            )}
 
-              {aprobado && !evaluacion.credencial && (
-                <div className="bg-surface-container-lowest p-space-md rounded-xl">
-                  <p className="font-body-sm text-body-sm text-on-surface-variant">
-                    Evaluación aprobada; emisión de la credencial pendiente.
-                  </p>
-                </div>
-              )}
-
-              {/* El motor que produjo el resultado viaja siempre: nada afirma una ejecucion que no ocurrio. */}
-              <div className="flex flex-wrap items-center gap-space-sm font-code-sm text-code-sm text-outline">
-                <span>Motor: {evaluacion.version_evaluador}</span>
-                {evaluacion.momento_inicio && evaluacion.momento_fin && (
-                  <span>
-                    Duración:{' '}
-                    {Math.round(
-                      (new Date(evaluacion.momento_fin) - new Date(evaluacion.momento_inicio)) / 10,
-                    ) / 100}{' '}
-                    s
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+            {/* El motor que produjo el resultado viaja siempre: nada afirma una ejecucion que no ocurrio. */}
+            <div className="qo-tags" style={{ marginTop: 0 }}>
+              <Chip>Motor: {evaluacion.version_evaluador || '—'}</Chip>
+              {duracion != null && <Chip>Duración: {duracion} s</Chip>}
+            </div>
+          </>
+        )}
       </div>
-    </div>
+    </Pagina>
   );
 }

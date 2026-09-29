@@ -21,6 +21,32 @@
   --color-error: #ffb4ab;
   --color-error-container: #93000a;
   --color-background: #131313;
+  --color-surface-bright: #393939;
+  --color-surface-container-highest: #353534;
+  --color-on-primary: #003640;
+  --color-on-primary-fixed: #001f26;
+
+  /* Tokens que las paginas ya usaban y no estaban definidos: sin ellos Tailwind ignora la clase. */
+  --spacing-gutter-desktop: 1.5rem;
+  --container-container-max: 80rem;
+  --text-headline-lg: 2rem;
+  --text-headline-md: 1.5rem;
+  --text-headline-sm: 1.125rem;
+  --text-body-lg: 1.0625rem;
+  --text-body-md: 0.9375rem;
+  --text-body-sm: 0.875rem;
+  --text-code-sm: 12px;
+  --text-code-md: 14px;
+  --text-label-caps: 11px;
+  --font-headline-lg: "Plus Jakarta Sans", sans-serif;
+  --font-headline-md: "Plus Jakarta Sans", sans-serif;
+  --font-headline-sm: "Plus Jakarta Sans", sans-serif;
+  --font-body-lg: "Inter", sans-serif;
+  --font-body-md: "Inter", sans-serif;
+  --font-body-sm: "Inter", sans-serif;
+  --font-code-sm: "JetBrains Mono", monospace;
+  --font-code-md: "JetBrains Mono", monospace;
+  --font-label-caps: "JetBrains Mono", monospace;
 
   --spacing-space-2xs: 0.25rem;
   --spacing-space-xs: 0.5rem;
@@ -58,7 +84,7 @@
 
 @layer base {
   html, body { margin: 0; padding: 0; }
-  body { overscroll-behavior: none; }
+  body { overscroll-behavior: none; font-family: "Inter", sans-serif; background: #131313; }
   main > :first-child { margin-top: 0 !important; }
   main > :last-child { margin-bottom: 0 !important; }
 }

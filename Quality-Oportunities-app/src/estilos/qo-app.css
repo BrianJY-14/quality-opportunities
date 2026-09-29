@@ -1,0 +1,75 @@
+/* Extensiones del sistema qo-* para las pantallas conectadas al backend (IA, ranking, editor). */
+
+.qo-tag.cyan { color: var(--qo-cyan); background: #4cd7f60c; border-color: #4cd7f61f; }
+.qo-tag.red { color: #ffb4ab; background: #ffb4ab0c; }
+.qo-note.ok { border-left-color: #4edea3aa; color: var(--qo-mint); }
+.qo-note.error { border-left-color: #ffb4abaa; color: #ffb4ab; background: #ffb4ab08; }
+.qo-note.aviso { border-left-color: #eec200aa; color: #f5da70; background: #eec20008; }
+.qo-btn:disabled { opacity: .42; cursor: not-allowed; filter: none; }
+.qo-btn.ghost:hover { text-decoration: underline; }
+.qo-score { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.qo-score strong { font-weight: 800; letter-spacing: -.04em; }
+.qo-score span { margin-top: 6px; font: 10px/1.4 var(--qo-mono); letter-spacing: .08em; text-transform: uppercase; color: #91a1a6; }
+.qo-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--qo-cyan); animation: qo-pulso 1.4s ease-in-out infinite; }
+@keyframes qo-pulso { 50% { opacity: .25; transform: scale(.8); } }
+.qo-main a { color: var(--qo-cyan); }
+.qo-card h2 { font-size: 19px; }
+.qo-grid.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.qo-grid.cinco { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.qo-kpi { background: var(--qo-card); border: 1px solid var(--qo-line); border-radius: 12px; padding: 16px 18px; }
+.qo-kpi small { display: block; font: 11px/1.5 var(--qo-mono); letter-spacing: .08em; text-transform: uppercase; color: #91a1a6; }
+.qo-kpi strong { display: block; margin-top: 6px; font-size: 26px; letter-spacing: -.04em; }
+.qo-list { display: grid; gap: 10px; }
+.qo-row { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; padding: 14px 16px; background: #151717; border: 1px solid var(--qo-line); border-radius: 10px; }
+.qo-row h3 { margin: 0 0 4px !important; font-size: 15px !important; }
+.qo-row p { margin: 0; font-size: 14px; }
+button.qo-row { width: 100%; text-align: left; color: inherit; }
+button.qo-row:hover { border-color: #4cd7f630; }
+.qo-textarea, .qo-input { width: 100%; border: 1px solid #ffffff12; color: var(--qo-text); background: #121414; border-radius: 7px; padding: 11px 12px; font: inherit; font-size: 14px; }
+.qo-textarea { resize: vertical; min-height: 84px; }
+.qo-textarea:focus, .qo-input:focus { outline: none; border-color: #4cd7f660; }
+
+/* Editor */
+.qo-editor { background: #101213; border: 1px solid var(--qo-line); border-radius: 13px; overflow: hidden; }
+.qo-editor-tabs { display: flex; gap: 2px; align-items: center; padding: 8px 8px 0; background: #0c0e0f; overflow-x: auto; }
+.qo-editor-tabs button { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 7px 7px 0 0; background: transparent; color: #91a1a6; font: 13px/1 var(--qo-mono); white-space: nowrap; }
+.qo-editor-tabs button[aria-selected=true] { background: #101213; color: var(--qo-cyan); }
+.qo-editor textarea { display: block; width: 100%; min-height: 470px; padding: 18px 20px; border: 0; outline: none; resize: vertical; background: #101213; color: #d9e6e8; font: 13.5px/1.75 var(--qo-mono); tab-size: 4; }
+.qo-editor-foot { display: flex; justify-content: space-between; gap: 10px; padding: 8px 16px; background: #0c0e0f; font: 12px/1.5 var(--qo-mono); color: #7f8f94; }
+.qo-toolbar-sticky { position: sticky; top: 70px; z-index: 30; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 18px; background: #1a1c1ded; backdrop-filter: blur(12px); border: 1px solid var(--qo-line); border-radius: 11px; }
+
+/* Resultado */
+.qo-veredicto { display: flex; gap: 18px; align-items: center; padding: 22px 24px; border-radius: 13px; border: 1px solid var(--qo-line); background: var(--qo-card); }
+.qo-veredicto .material-symbols-outlined { font-size: 42px; }
+.qo-veredicto.ok { border-color: #4edea340; background: radial-gradient(ellipse at 0 50%, #4edea314, transparent 60%), var(--qo-card); }
+.qo-veredicto.no { border-color: #ffb4ab40; }
+.qo-veredicto.tec { border-color: #eec20040; }
+
+/* Leaderboard */
+.qo-board { background: var(--qo-card); border: 1px solid var(--qo-line); border-radius: 13px; overflow: hidden; }
+.qo-board-row { display: grid; grid-template-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) 80px 80px minmax(0, 1.4fr); gap: 14px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--qo-line); width: 100%; background: transparent; color: inherit; text-align: left; border-left: 0; border-right: 0; border-bottom: 0; }
+.qo-board-row.head { border-top: 0; background: #151717; font: 11px/1.5 var(--qo-mono); letter-spacing: .08em; text-transform: uppercase; color: #91a1a6; }
+button.qo-board-row:hover { background: #ffffff05; }
+.qo-board-pos { font-size: 22px; font-weight: 800; letter-spacing: -.04em; color: #7f8f94; }
+.qo-rango { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 30px; border: 1px solid currentColor; font: 12px/1.4 var(--qo-mono); background: color-mix(in srgb, currentColor 9%, transparent); }
+.qo-rango .material-symbols-outlined { font-size: 15px; }
+
+@media (max-width: 1100px) {
+  .qo-grid.cinco { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .qo-grid.dos, .qo-grid.cinco { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qo-board-row { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .qo-board-row > .ocultar-movil { display: none; }
+  .qo-toolbar-sticky { top: 120px; }
+}
+@media (max-width: 500px) {
+  .qo-grid.dos { grid-template-columns: 1fr; }
+}
+
+.qo-dialog-fondo { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 16px; background: #060c11ba; backdrop-filter: blur(5px); }
+.qo-dialog-fondo .qo-dialog { overflow: auto; }
+.solo-movil { display: none; }
+@media (max-width: 760px) { .solo-movil { display: inline; } }
+.qo-codigo { margin: 8px 0 0; padding: 12px 14px; max-height: 320px; overflow: auto; white-space: pre; background: #0d1011; border: 1px solid var(--qo-line); border-radius: 8px; font: 12px/1.65 var(--qo-mono); color: #bdd7dd; }
+.qo-field select:disabled, .qo-field input:disabled, .qo-field textarea:disabled { opacity: .7; }
