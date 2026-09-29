@@ -17,18 +17,23 @@ def a_salida(credencial: Credencial) -> CredencialSalida:
     arma desde `contenido_emitido`, no desde el estado actual del perfil o del reto."""
     contenido = json.loads(credencial.contenido_emitido)
     reto = credencial.participacion.reto
+    # Credenciales corregidas a mano en la base durante el hackaton guardaron los criterios como
+    # lista y algunas omiten claves. La respuesta se arma con lo que haya, sin 500.
+    criterios = contenido.get("criterios_aceptacion", reto.criterios_aceptacion)
+    if isinstance(criterios, list):
+        criterios = "\n".join(str(c) for c in criterios)
     return CredencialSalida(
         identificador_publico=credencial.identificador_publico,
         vigente=credencial.esta_vigente(),
         momento_emision=credencial.momento_emision,
-        emisor=contenido["emisor"],
+        emisor=contenido.get("emisor", reto.organizacion.nombre),
         emisor_logo=reto.organizacion.logo,
-        estudiante=contenido["estudiante"],
-        reto=contenido["reto"],
-        criterios_aceptacion=contenido["criterios_aceptacion"],
-        commit=contenido["commit"],
-        repositorio=contenido["repositorio"],
-        version_evaluador=contenido["version_evaluador"],
+        estudiante=contenido.get("estudiante", credencial.participacion.perfil.nombre_publico),
+        reto=contenido.get("reto", reto.titulo),
+        criterios_aceptacion=str(criterios),
+        commit=contenido.get("commit", ""),
+        repositorio=contenido.get("repositorio", ""),
+        version_evaluador=contenido.get("version_evaluador", "desconocida"),
         huella_contenido=credencial.huella_contenido,
         revocacion=RevocacionSalida(
             momento_revocacion=credencial.revocacion.momento_revocacion,

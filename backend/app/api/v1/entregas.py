@@ -9,7 +9,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import ErrorDominio
 from app.dominio.enums import EstadoEvaluacion
-from app.models import Credencial, Entrega, Evaluacion, ResultadoPrueba, Usuario
+from app.models import Credencial, Entrega, Evaluacion, ResultadoPrueba, RevisionIA, Usuario
 from app.schemas.evaluacion import (
     CredencialResumen,
     EntregaEntrada,
@@ -19,7 +19,7 @@ from app.schemas.evaluacion import (
     ResultadoPruebaSalida,
 )
 from app.servicios import evaluacion as servicio_evaluacion
-from app.servicios import seguridad
+from app.servicios import juez_ia, seguridad
 
 router = APIRouter()
 settings = get_settings()
@@ -105,6 +105,7 @@ def historial(participacion_id: uuid.UUID, db: Session = Depends(get_db), actor:
             momento_entrega=e.momento_entrega,
             repositorio=e.repositorio,
             commit=e.commit,
+            huella_proyecto=e.huella_proyecto,
             evaluaciones=[ev.id for ev in e.evaluaciones],
         )
         for e in filas
@@ -120,6 +121,8 @@ def estado_evaluacion(
     if evaluacion is None:
         raise ErrorDominio("EVALUACION_NO_ENCONTRADA", "No existe esa evaluacion.", http=404)
     seguridad.participacion_propia(db, actor, evaluacion.entrega.participacion_id)
+    if evaluacion.estado_procesamiento in EN_PROCESO and servicio_evaluacion.cerrar_colgadas(db):
+        db.refresh(evaluacion)
 
     salida = EvaluacionSalida(
         id=evaluacion.id,
@@ -160,6 +163,8 @@ def estado_evaluacion(
         )
         for r in evaluacion.resultados
     ]
+
+    salida.revision_ia = juez_ia.a_dict(db.get(RevisionIA, evaluacion.id))
 
     credencial = db.scalar(select(Credencial).where(Credencial.evaluacion_id == evaluacion.id))
     if credencial:

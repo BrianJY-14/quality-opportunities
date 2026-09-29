@@ -35,6 +35,7 @@ class EntregaSalida(BaseModel):
     momento_entrega: datetime
     repositorio: str
     commit: str
+    huella_proyecto: str | None = None
     evaluaciones: list[uuid.UUID] = []
 
 
@@ -78,3 +79,5 @@ class EvaluacionSalida(BaseModel):
     progreso: dict | None = None
     resultados: list[ResultadoPruebaSalida] = []
     credencial: CredencialResumen | None = None
+    # Juez IA: se completa al finalizar. No forma parte del dictamen.
+    revision_ia: dict | None = None

@@ -20,7 +20,9 @@ class PruebaSalida(BaseModel):
     obligatoria: bool
     condicion_aprobacion: str
     limite_ejecucion_ms: int | None = None
-    # `referencia_ejecutable` no se expone: es detalle interno de la bateria.
+    # `referencia_ejecutable` y el codigo de la prueba no se exponen: son detalle interno de la
+    # bateria. Solo se informa si la prueba tiene comprobacion ejecutable.
+    tiene_codigo: bool = False
 
 
 class RetoResumen(BaseModel):
@@ -32,6 +34,8 @@ class RetoResumen(BaseModel):
     momento_cierre: datetime | None = None
     pruebas_obligatorias: int
     pruebas_totales: int
+    dificultad: str | None = None
+    aptitudes: list[str] = []
 
 
 class RetoDetalle(RetoResumen):
@@ -61,9 +65,23 @@ class SolicitudSalida(BaseModel):
     # El contenido original NUNCA se expone (RN-ING-01).
 
 
+class PruebaBorrador(PruebaSalida):
+    """Vista del representante: incluye el codigo propuesto para que lo revise antes de publicar."""
+
+    referencia_ejecutable: str = ""
+    contenido_ejecutable: str | None = None
+
+
+class RetoBorrador(RetoDetalle):
+    pruebas: list[PruebaBorrador]
+    proyecto_base: list[dict] = []
+
+
 class RetoActualizar(BaseModel):
     titulo: str | None = Field(default=None, min_length=4, max_length=500)
     descripcion_publica: str | None = None
     criterios_aceptacion: str | None = None
     repositorio_base: str | None = None
     version_base: str | None = None
+    dificultad: str | None = Field(default=None, pattern="^(BASICO|INTERMEDIO|AVANZADO)$")
+    aptitudes: list[str] | None = None

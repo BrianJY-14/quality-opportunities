@@ -61,3 +61,18 @@ def consultar(solicitud_id: uuid.UUID, db: Session = Depends(get_db), actor: Usu
         db, actor, solicitud.organizacion_id, "solicitud.consultada", f"solicitud:{solicitud.id}"
     )
     return _salida(db, solicitud)
+
+
+@router.get("/organizaciones/{organizacion_id}/solicitudes", response_model=list[SolicitudSalida])
+def listar(organizacion_id: uuid.UUID, db: Session = Depends(get_db), actor: Usuario = Depends(usuario_actual)):
+    """Historial de issues enviados por la organizacion al AI Scoper, del mas reciente al mas antiguo."""
+    seguridad.exigir_gestion_de_retos(
+        db, actor, organizacion_id, "solicitud.listada", f"organizacion:{organizacion_id}"
+    )
+    filas = db.scalars(
+        select(SolicitudReto)
+        .where(SolicitudReto.organizacion_id == organizacion_id)
+        .order_by(SolicitudReto.momento_recepcion.desc())
+        .limit(50)
+    ).all()
+    return [_salida(db, s) for s in filas]
