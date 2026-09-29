@@ -39,6 +39,9 @@ class PerfilEstudiante(Base):
     universidad: Mapped[str | None] = mapped_column(String(255), nullable=True)
     carrera: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ciclo: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Resumen profesional redactado por el LLM a partir de la evidencia verificada del perfil.
+    resumen_ia: Mapped[str | None] = mapped_column(Text, nullable=True)
+    momento_resumen: Mapped[datetime | None] = mapped_column(MomentoUTC, nullable=True)
 
     usuario: Mapped[Usuario] = relationship(back_populates="perfil")
     participaciones: Mapped[list["Participacion"]] = relationship(back_populates="perfil")  # noqa: F821

@@ -47,6 +47,10 @@ class Entrega(IdentificadorPropio, Base):
     momento_entrega: Mapped[datetime] = mapped_column(MomentoUTC, default=ahora)
     repositorio: Mapped[str] = mapped_column(String(500))
     commit: Mapped[str] = mapped_column(String(64))
+    # Copia congelada del espacio de trabajo al enviar (regla 4 del procedimiento) y su SHA-256
+    # sobre el documento canonico. Seguir editando el borrador no altera lo entregado.
+    proyecto: Mapped[str | None] = mapped_column(Text, nullable=True)
+    huella_proyecto: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     participacion: Mapped[Participacion] = relationship(back_populates="entregas")
     evaluaciones: Mapped[list["Evaluacion"]] = relationship(back_populates="entrega")

@@ -62,6 +62,12 @@ class Reto(IdentificadorPropio, Base):
     momento_cierre: Mapped[datetime | None] = mapped_column(MomentoUTC, nullable=True)
     repositorio_base: Mapped[str | None] = mapped_column(String(500), nullable=True)
     version_base: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # BASICO | INTERMEDIO | AVANZADO. Pondera la experiencia que aporta el reto al ranking.
+    dificultad: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Lista JSON de aptitudes que ejercita el reto; alimenta el grafo de aptitudes del CV.
+    aptitudes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Documento JSON `{"version", "archivos"}` con el proyecto inicial del editor.
+    proyecto_base: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     organizacion: Mapped[Organizacion] = relationship(lazy="joined")
     solicitud: Mapped[SolicitudReto | None] = relationship(back_populates="retos")
