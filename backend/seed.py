@@ -105,11 +105,19 @@ def main() -> None:
     if not inspect(engine).has_table("reto"):
         raise SystemExit("El esquema no existe. Ejecutar primero:  alembic upgrade head")
 
-    db = SessionLocal()
-    if db.scalar(select(Reto).limit(1)):
-        print("Ya hay datos sembrados; no se hace nada.")
-        return
+    with SessionLocal() as db:
+        if db.scalar(select(Reto).limit(1)):
+            print("Ya hay datos base sembrados; se omite la siembra base.")
+        else:
+            _sembrar_base(db)
+        # Ampliacion para las funciones de IA: idempotente por titulo y por nombre publico, asi que
+        # tambien se puede ejecutar sobre una base de produccion ya sembrada.
+        import seed_ia
 
+        seed_ia.ampliar(db)
+
+
+def _sembrar_base(db) -> None:
     momento = ahora()
 
     organizacion = Organizacion(
