@@ -39,6 +39,7 @@ VERSION = "e2b:v1"
 RAIZ = "/home/user/proyecto"  # lo que entrego el estudiante
 OFICIAL = "/home/user/oficial"  # las comprobaciones del reto, que el estudiante no controla
 SEGUNDOS_SANDBOX = 180  # vida maxima del sandbox; la facturacion es por segundo
+SEGUNDOS_CREACION = 45  # espera maxima para obtener un sandbox listo
 SEGUNDOS_COMANDO = 30  # techo por comando, aunque el reto declare un limite mayor
 
 
@@ -102,7 +103,10 @@ class EvaluadorE2B:
             raise FalloEvaluador("Falta la variable de entorno E2B_API_KEY.")
 
         try:
-            sandbox = Sandbox.create(api_key=clave, timeout=SEGUNDOS_SANDBOX)
+            # `timeout` es la vida del sandbox; `request_timeout` acota cada llamada HTTP al proveedor.
+            # Sin el segundo, una creacion que se queda esperando la imagen bloquea el hilo para
+            # siempre y la evaluacion no sale nunca de EN_EJECUCION.
+            sandbox = Sandbox.create(api_key=clave, timeout=SEGUNDOS_SANDBOX, request_timeout=SEGUNDOS_CREACION)
         except Exception as error:
             raise FalloEvaluador(f"El sandbox no arranco: {type(error).__name__}") from error
 

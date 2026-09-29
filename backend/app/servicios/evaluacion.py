@@ -7,10 +7,14 @@ servicio y solicita certificacion al aprobar.
 
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturoVencido
+from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.errors import ErrorDominio
 from app.core.logging import evaluacion_id as ctx_evaluacion_id
@@ -23,7 +27,7 @@ from app.dominio.enums import (
 )
 from app.models import Entrega, EspacioTrabajo, Evaluacion, Participacion, ResultadoPrueba, Usuario
 from app.models._base import ahora
-from app.servicios import auditoria, certificacion, seguridad
+from app.servicios import auditoria, certificacion, juez_ia, seguridad
 from app.servicios import workspace as servicio_workspace
 from app.servicios.puertos import FalloEvaluador
 from app.servicios.registro import obtener_evaluador
@@ -52,11 +56,18 @@ def registrar_entrega(
         db.scalar(select(func.count()).select_from(Entrega).where(Entrega.participacion_id == participacion.id)) or 0
     )
 
+    # Regla 4: la entrega congela el proyecto del editor en el momento del envio. Seguir
+    # editando el borrador despues no cambia lo que se evalua ni lo que revisa el juez.
+    espacio = db.get(EspacioTrabajo, participacion.id)
+    proyecto = espacio.archivos if espacio and servicio_workspace.leer_archivos(espacio.archivos) else None
+
     entrega = Entrega(
         participacion_id=participacion.id,
         numero_intento=intentos + 1,
         repositorio=repositorio,
         commit=commit,
+        proyecto=proyecto,
+        huella_proyecto=servicio_workspace.huella(proyecto) if proyecto else None,
     )
     db.add(entrega)
     db.flush()
@@ -101,12 +112,70 @@ def solicitar(db: Session, entrega: Entrega, actor: Usuario) -> Evaluacion:
 
 
 def procesar(evaluacion_id: uuid.UUID) -> None:
-    """Trabajo en segundo plano, con la identidad del servicio. Abre su propia sesion."""
+    """Trabajo en segundo plano, con la identidad del servicio. Abre su propia sesion.
+
+    Red de seguridad final: cualquier excepcion, tambien las que ocurran fuera del bloque que
+    llama al evaluador (leer la entrega, persistir resultados, emitir), cierra la evaluacion en
+    ERROR_TECNICO. Sin esto una fila podia quedar en EN_EJECUCION para siempre y el frontend
+    consultando sin fin.
+    """
     testigo = ctx_evaluacion_id.set(str(evaluacion_id))
     try:
         _procesar(evaluacion_id)
+    except Exception as error:  # noqa: BLE001
+        log.exception("fallo no controlado al procesar la evaluacion")
+        with SessionLocal() as db:
+            evaluacion = db.get(Evaluacion, evaluacion_id)
+            if evaluacion is not None and evaluacion.estado_procesamiento in EN_CURSO:
+                _cerrar_con_error_tecnico(db, evaluacion_id, f"Fallo interno al procesar: {type(error).__name__}")
     finally:
         ctx_evaluacion_id.reset(testigo)
+
+
+EN_CURSO = (EstadoEvaluacion.PENDIENTE, EstadoEvaluacion.EN_EJECUCION)
+
+
+def _ejecutar_con_limite(entrega, pruebas: list, archivos: list):
+    """Llama al evaluador en un hilo aparte y espera como maximo LIMITE_EVALUACION_S.
+
+    Un proveedor que no responde (el sandbox esperando su imagen, una conexion colgada) no puede
+    retener la evaluacion: al vencer el plazo se levanta FalloEvaluador y la evaluacion cierra en
+    ERROR_TECNICO. El hilo abandonado termina solo cuando el SDK corte; el sandbox tiene su propio
+    tiempo de vida y se destruye al vencer.
+    """
+    limite = get_settings().LIMITE_EVALUACION_S
+    ejecutor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="evaluador")
+    futuro = ejecutor.submit(obtener_evaluador().ejecutar, entrega.repositorio, entrega.commit, pruebas, archivos)
+    try:
+        return futuro.result(timeout=limite)
+    except FuturoVencido as error:
+        raise FalloEvaluador(f"El entorno de ejecucion no respondio en {limite} s.") from error
+    finally:
+        ejecutor.shutdown(wait=False, cancel_futures=True)
+
+
+def cerrar_colgadas(db: Session, margen_s: int | None = None) -> int:
+    """Cierra en ERROR_TECNICO las evaluaciones que siguen en curso mas alla del limite.
+
+    Cubre lo que ningun try/except puede cubrir: que el proceso muera a mitad del trabajo (Render
+    reinicia o duerme el servicio del plan gratuito y las BackgroundTasks en memoria se pierden).
+    Se llama al arrancar el servicio y al consultar una evaluacion.
+    """
+    limite = timedelta(seconds=(margen_s if margen_s is not None else get_settings().LIMITE_EVALUACION_S + 60))
+    corte = ahora() - limite
+    colgadas = db.scalars(
+        select(Evaluacion).where(
+            Evaluacion.estado_procesamiento.in_(EN_CURSO),
+            func.coalesce(Evaluacion.momento_inicio, Evaluacion.momento_solicitud) < corte,
+        )
+    ).all()
+    for evaluacion in colgadas:
+        _cerrar_con_error_tecnico(
+            db,
+            evaluacion.id,
+            "La evaluacion se interrumpio (reinicio del servicio o entorno sin respuesta). Se puede reevaluar.",
+        )
+    return len(colgadas)
 
 
 def _procesar(evaluacion_id: uuid.UUID) -> None:
@@ -123,13 +192,17 @@ def _procesar(evaluacion_id: uuid.UUID) -> None:
         entrega = evaluacion.entrega
         pruebas = list(entrega.participacion.reto.pruebas)
 
-        # El contenido que se ejecuta sale del espacio de trabajo de la participacion. El
-        # evaluador simulado lo ignora; el de sandbox lo escribe y lo corre de verdad.
-        espacio = db.get(EspacioTrabajo, entrega.participacion_id)
-        archivos = servicio_workspace.leer_archivos(espacio.archivos) if espacio else []
+        # El contenido que se ejecuta es la copia congelada de la entrega; si la entrega es
+        # anterior a esa copia, el espacio de trabajo. El evaluador simulado lo ignora; el de
+        # sandbox lo escribe y lo corre de verdad.
+        if entrega.proyecto:
+            archivos = servicio_workspace.leer_archivos(entrega.proyecto)
+        else:
+            espacio = db.get(EspacioTrabajo, entrega.participacion_id)
+            archivos = servicio_workspace.leer_archivos(espacio.archivos) if espacio else []
 
         try:
-            salida = obtener_evaluador().ejecutar(entrega.repositorio, entrega.commit, pruebas, archivos)
+            salida = _ejecutar_con_limite(entrega, pruebas, archivos)
         except FalloEvaluador as fallo:
             # RN-EVAL-03: el fallo del entorno se distingue de una solucion desaprobada.
             # Queda sin dictamen, y por tanto no puede sustentar una credencial.
@@ -180,6 +253,14 @@ def _procesar(evaluacion_id: uuid.UUID) -> None:
             detalle=f"dictamen={dictamen}",
         )
         db.flush()
+
+        # Juez IA: revision de calidad del codigo. Informativa, no altera el dictamen, y un fallo
+        # suyo no puede impedir ni la evaluacion ni la credencial.
+        try:
+            with db.begin_nested():
+                juez_ia.revisar(db, evaluacion)
+        except Exception:  # noqa: BLE001
+            log.exception("el juez IA fallo; la evaluacion sigue su curso")
 
         if dictamen == Dictamen.APROBADO:
             try:

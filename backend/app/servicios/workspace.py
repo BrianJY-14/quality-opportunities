@@ -53,19 +53,22 @@ def leer_archivos(documento: str) -> list[dict]:
 
 
 def obtener_o_crear(db: Session, participacion: Participacion) -> EspacioTrabajo:
-    """Abrir el espacio no borra lo que ya habia. Se crea vacio la primera vez.
+    """Abrir el espacio no borra lo que ya habia.
 
-    El proyecto base del reto se inyecta al crearlo, cuando el manifiesto lo defina; mientras
-    tanto nace vacio y el editor muestra un proyecto en blanco."""
+    La primera vez se inicializa con el proyecto base del reto (U1, paso 3) si lo tiene; si no,
+    nace vacio y el editor muestra un proyecto en blanco. Solo ocurre una vez: volver a abrir
+    nunca reemplaza el trabajo del estudiante por el proyecto base."""
     espacio = db.get(EspacioTrabajo, participacion.id)
     if espacio is not None:
         return espacio
 
+    base = participacion.reto.proyecto_base if participacion.reto else None
+    documento = documento_canonico(leer_archivos(base)) if base and leer_archivos(base) else PROYECTO_VACIO
     espacio = EspacioTrabajo(
         participacion_id=participacion.id,
         revision=0,
-        archivos=PROYECTO_VACIO,
-        bytes_total=0,
+        archivos=documento,
+        bytes_total=len(documento.encode("utf-8")) if documento != PROYECTO_VACIO else 0,
     )
     db.add(espacio)
     db.flush()

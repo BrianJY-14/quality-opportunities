@@ -21,6 +21,17 @@ log = logging.getLogger("api")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # El esquema lo aplica Alembic (`alembic upgrade head`), no el arranque de la aplicacion.
+    # Las BackgroundTasks viven en memoria: si el proceso anterior murio con evaluaciones a medias,
+    # nadie las va a terminar. Se cierran en ERROR_TECNICO para que el frontend deje de esperar.
+    try:
+        from app.servicios.evaluacion import cerrar_colgadas
+
+        with SessionLocal() as db:
+            cerradas = cerrar_colgadas(db, margen_s=0)
+        if cerradas:
+            log.warning("evaluaciones interrumpidas cerradas al arrancar", extra={"cantidad": cerradas})
+    except Exception:  # noqa: BLE001 -- sin esquema todavia (primer arranque) no hay nada que cerrar
+        log.exception("no se pudieron revisar evaluaciones interrumpidas")
     log.info(
         "servicio iniciado",
         extra={"entorno": settings.APP_ENV, "commit": settings.GIT_COMMIT, "evaluador": settings.EVALUADOR},
@@ -104,4 +115,6 @@ def meta():
         "entorno": settings.APP_ENV,
         "evaluador": settings.EVALUADOR,
         "preparador": settings.PREPARADOR,
+        "llm_configurado": bool(settings.LLM_API_KEY),
+        "llm_modelo": settings.LLM_MODEL if settings.LLM_API_KEY else None,
     }
