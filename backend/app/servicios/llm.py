@@ -111,7 +111,7 @@ class ClienteLLM:
                     break  # sigue limitado: siguiente modelo
                 if r.status_code >= 400:
                     # El cuerpo de error del proveedor puede ser util, pero nunca incluye la clave.
-                    errores.append(f"{modelo}: HTTP {r.status_code}: {r.text[:160]}")
+                    errores.append(f"{modelo}: HTTP {r.status_code}: {r.text[:120]}")
                     break
                 try:
                     contenido = r.json()["choices"][0]["message"]["content"]

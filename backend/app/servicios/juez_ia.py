@@ -147,7 +147,7 @@ def revisar(db: Session, evaluacion: Evaluacion, cliente=None, *, reintentar: bo
                 datos = cliente.json(INSTRUCCIONES, mensaje, max_tokens=1800)
                 _validar_respuesta(datos)
         except Exception as error:  # noqa: BLE001 -- el juez no puede tumbar la evaluacion
-            motivo_sin_modelo = f"el modelo no respondio ({str(error)[:160] or type(error).__name__})"
+            motivo_sin_modelo = f"el modelo no respondio ({str(error)[:500] or type(error).__name__})"
             log.warning("el juez IA no respondio", extra={"causa": motivo_sin_modelo})
             datos = None
 
