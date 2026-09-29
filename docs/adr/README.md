@@ -12,3 +12,5 @@ criterio de evaluacion.
 | [ADR-004](ADR-004-frontend-estatico-y-autenticacion.md) | Frontend estatico en GitHub Pages, CORS por lista blanca y autenticacion Bearer |
 | [ADR-005](ADR-005-esquema-versionado-y-verificacion-en-ci.md) | Esquema versionado con Alembic y verificacion automatica en CI |
 | [ADR-006](ADR-006-permisos-por-representacion.md) | Permisos derivados de la representacion, no de un rol global |
+| [ADR-007](ADR-007-integracion-de-ia.md) | Modelos de lenguaje tras un cliente comun, salida validada y respaldo por reglas |
+| [ADR-008](ADR-008-evaluaciones-sin-bloqueo.md) | Ninguna evaluacion queda en EN_EJECUCION: limite, red final y cierre de huerfanas |
