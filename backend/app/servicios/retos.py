@@ -3,6 +3,7 @@
 Prepara el borrador con IA, aplica autorizacion y publica solo tras revision.
 """
 
+import json
 import uuid
 
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from app.models import Prueba, Reto, SolicitudReto, Usuario
 from app.models._base import ahora
 from app.servicios import auditoria, seguridad
 from app.servicios.registro import obtener_preparador
+from app.servicios.workspace import documento_canonico
 
 
 def registrar_solicitud(
@@ -81,6 +83,9 @@ def preparar(db: Session, solicitud_id: uuid.UUID) -> Reto:
         repositorio_base=borrador.repositorio_base,
         version_base=borrador.version_base,
         estado=EstadoReto.BORRADOR,
+        dificultad=borrador.dificultad,
+        aptitudes=json.dumps(borrador.aptitudes, ensure_ascii=False) if borrador.aptitudes else None,
+        proyecto_base=documento_canonico(borrador.proyecto_base) if borrador.proyecto_base else None,
     )
     with_session.add(reto)
     with_session.flush()
@@ -95,6 +100,7 @@ def preparar(db: Session, solicitud_id: uuid.UUID) -> Reto:
                 condicion_aprobacion=propuesta.condicion_aprobacion,
                 referencia_ejecutable=propuesta.referencia_ejecutable,
                 limite_ejecucion_ms=propuesta.limite_ejecucion_ms,
+                contenido_ejecutable=propuesta.contenido_ejecutable,
             )
         )
 

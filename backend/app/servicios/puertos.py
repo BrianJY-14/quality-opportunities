@@ -18,6 +18,9 @@ class PruebaPropuesta:
     condicion_aprobacion: str
     referencia_ejecutable: str
     limite_ejecucion_ms: int | None = None
+    # Propuesta de comprobacion ejecutable. Es un BORRADOR como todo lo demas: la revision humana
+    # debe validarla contra una solucion de referencia antes de publicar (seccion 5, R4).
+    contenido_ejecutable: str | None = None
 
 
 @dataclass
@@ -33,6 +36,10 @@ class BorradorReto:
     modelo: str
     version_instrucciones: str
     resumen_preparacion: str
+    dificultad: str | None = None
+    aptitudes: list[str] = field(default_factory=list)
+    # Proyecto inicial que recibe el estudiante al abrir el editor: [{"ruta", "contenido"}].
+    proyecto_base: list[dict] | None = None
 
 
 class PreparadorIA(Protocol):
