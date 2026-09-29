@@ -1,10 +1,14 @@
-import { BarraPuntaje, Chip, Icono, Puntaje, Radar, Tarjeta, Titulo } from './ui.jsx';
+import { useState } from 'react';
+
+import { Aviso, BarraPuntaje, Boton, Chip, Icono, Puntaje, Radar, Tarjeta, Titulo } from './ui.jsx';
 
 /**
  * Informe del Juez IA. Separa lo medido (analisis estatico) de lo opinado (modelo) y recuerda que
  * no forma parte del dictamen: aprobar depende solo de las pruebas oficiales.
  */
-export default function JuezIAPanel({ revision }) {
+export default function JuezIAPanel({ revision, onReintentar }) {
+  const [reintentando, setReintentando] = useState(false);
+  const [errorReintento, setErrorReintento] = useState(null);
   if (!revision) return null;
   if (revision.estado === 'SIN_CODIGO') {
     return (
@@ -30,6 +34,30 @@ export default function JuezIAPanel({ revision }) {
       >
         Juez IA de arquitectura
       </Titulo>
+
+      {revision.estado === 'SOLO_ESTATICA' && onReintentar && (
+        <div className="qo-actions" style={{ marginBottom: 16 }}>
+          <Boton
+            variante="secundario"
+            icono="auto_awesome"
+            disabled={reintentando}
+            onClick={async () => {
+              setReintentando(true);
+              setErrorReintento(null);
+              try {
+                await onReintentar();
+              } catch (e) {
+                setErrorReintento(e?.mensaje ?? 'No se pudo contactar al modelo.');
+              } finally {
+                setReintentando(false);
+              }
+            }}
+          >
+            {reintentando ? 'Consultando al modelo…' : 'Reintentar revisión con IA'}
+          </Boton>
+          {errorReintento && <Aviso tipo="error">{errorReintento}</Aviso>}
+        </div>
+      )}
 
       <div className="qo-two" style={{ gridTemplateColumns: 'minmax(220px, 280px) minmax(0, 1fr)', alignItems: 'center' }}>
         <div>

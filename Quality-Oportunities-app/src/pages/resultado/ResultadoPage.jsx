@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import DefensaPanel from '../../components/DefensaPanel.jsx';
 import JuezIAPanel from '../../components/JuezIAPanel.jsx';
 import { Aviso, Boton, Cargando, Chip, Encabezado, Icono, Pagina, Tarjeta, Titulo } from '../../components/ui.jsx';
-import { reevaluar, verEvaluacion } from '../../service/api.js';
+import { reevaluar, reintentarRevisionIA, verEvaluacion } from '../../service/api.js';
 
 const EN_CURSO = ['PENDIENTE', 'EN_EJECUCION'];
 
@@ -65,13 +65,15 @@ export default function ResultadoPage({ evaluacionId, tituloReto, onVolver, onVe
   const enCurso = evaluacion && EN_CURSO.includes(evaluacion.estado_procesamiento);
   const aprobado = evaluacion?.dictamen === 'APROBADO';
   const errorTecnico = evaluacion?.estado_procesamiento === 'ERROR_TECNICO';
+  // Ninguna prueba obligatoria llego a ejecutarse: no es una desaprobacion.
+  const noEvaluable = evaluacion?.dictamen === 'NO_EVALUABLE';
   const progreso = evaluacion?.progreso;
   const porcentaje = progreso?.pruebas_totales
     ? Math.round((progreso.pruebas_ejecutadas / progreso.pruebas_totales) * 100)
     : 0;
 
   const CATEGORIA = { FUNCIONAL: 'Funcional', CASO_LIMITE: 'Caso límite', RENDIMIENTO: 'Rendimiento' };
-  const clase = errorTecnico ? 'tec' : aprobado ? 'ok' : 'no';
+  const clase = errorTecnico || noEvaluable ? 'tec' : aprobado ? 'ok' : 'no';
   const duracion =
     evaluacion?.momento_inicio && evaluacion?.momento_fin
       ? Math.round((new Date(evaluacion.momento_fin) - new Date(evaluacion.momento_inicio)) / 10) / 100
@@ -121,19 +123,29 @@ export default function ResultadoPage({ evaluacionId, tituloReto, onVolver, onVe
           <>
             <div className={`qo-veredicto ${clase}`}>
               <Icono
-                nombre={errorTecnico ? 'build' : aprobado ? 'verified' : 'cancel'}
-                style={{ color: errorTecnico ? 'var(--qo-yellow)' : aprobado ? 'var(--qo-mint)' : '#ffb4ab' }}
+                nombre={errorTecnico ? 'build' : noEvaluable ? 'help' : aprobado ? 'verified' : 'cancel'}
+                style={{
+                  color: errorTecnico || noEvaluable ? 'var(--qo-yellow)' : aprobado ? 'var(--qo-mint)' : '#ffb4ab',
+                }}
               />
               <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0 }}>
-                  {errorTecnico ? 'No se pudo completar la evaluación' : aprobado ? 'Aprobado' : 'No aprobado'}
+                  {errorTecnico
+                    ? 'No se pudo completar la evaluación'
+                    : noEvaluable
+                      ? 'No evaluable'
+                      : aprobado
+                        ? 'Aprobado'
+                        : 'No aprobado'}
                 </h2>
                 <p style={{ margin: '4px 0 0' }}>
                   {errorTecnico
                     ? evaluacion.detalle_error ?? 'Fallo del entorno de ejecución. No cuenta como desaprobación.'
-                    : aprobado
-                      ? 'La solución superó todas las pruebas obligatorias del reto.'
-                      : 'Alguna prueba obligatoria no se cumplió.'}
+                    : noEvaluable
+                      ? 'Alguna prueba del reto no llegó a ejecutarse (el reto no define su código). No cuenta como desaprobación ni emite credencial.'
+                      : aprobado
+                        ? 'La solución superó todas las pruebas obligatorias del reto.'
+                        : 'Una prueba obligatoria se ejecutó y no se cumplió.'}
                 </p>
               </div>
               {errorTecnico && (
@@ -195,7 +207,13 @@ export default function ResultadoPage({ evaluacionId, tituloReto, onVolver, onVe
               </Tarjeta>
             )}
 
-            <JuezIAPanel revision={evaluacion.revision_ia} />
+            <JuezIAPanel
+              revision={evaluacion.revision_ia}
+              onReintentar={async () => {
+                const revision = await reintentarRevisionIA(evaluacion.id ?? idActual);
+                setEvaluacion((e) => ({ ...e, revision_ia: revision }));
+              }}
+            />
             {evaluacion.revision_ia && evaluacion.revision_ia.estado !== 'SIN_CODIGO' && (
               <DefensaPanel entregaId={evaluacion.entrega_id} />
             )}

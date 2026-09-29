@@ -53,6 +53,7 @@ export function useEvaluacion() {
   const aprobada = evaluacion?.dictamen === 'APROBADO';
   const desaprobada = evaluacion?.dictamen === 'NO_APROBADO';
   const errorTecnico = evaluacion?.estado_procesamiento === 'ERROR_TECNICO';
+  const noEvaluable = evaluacion?.dictamen === 'NO_EVALUABLE';
 
   return {
     enviar,
@@ -63,6 +64,7 @@ export function useEvaluacion() {
     aprobada,
     desaprobada,
     errorTecnico,
+    noEvaluable,
     progreso: evaluacion?.progreso ?? null,
     resultados: evaluacion?.resultados ?? [],
     credencial: evaluacion?.credencial ?? null,

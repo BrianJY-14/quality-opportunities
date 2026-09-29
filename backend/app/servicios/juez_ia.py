@@ -71,13 +71,20 @@ def archivos_de_entrega(db: Session, evaluacion: Evaluacion) -> list[dict]:
     return servicio_workspace.leer_archivos(espacio.archivos) if espacio else []
 
 
-def revisar(db: Session, evaluacion: Evaluacion, cliente=None) -> RevisionIA:
-    """Crea (o devuelve) la revision de una evaluacion finalizada. Nunca lanza por el modelo."""
+def revisar(db: Session, evaluacion: Evaluacion, cliente=None, *, reintentar: bool = False) -> RevisionIA:
+    """Crea (o devuelve) la revision de una evaluacion finalizada. Nunca lanza por el modelo.
+
+    Con `reintentar=True`, una revision que quedo SOLO_ESTATICA porque el modelo fallo (limite
+    del proveedor, respuesta invalida) se descarta y se vuelve a pedir. Una revision COMPLETADA
+    no se rehace: queda como registro de lo que se dijo de esa entrega.
+    """
+    cliente = cliente or llm.obtener_cliente()
     existente = db.get(RevisionIA, evaluacion.id)
     if existente is not None:
-        return existente
-
-    cliente = cliente or llm.obtener_cliente()
+        if not (reintentar and existente.estado == "SOLO_ESTATICA" and cliente.disponible):
+            return existente
+        db.delete(existente)
+        db.flush()
     archivos = archivos_de_entrega(db, evaluacion)
     entrega = evaluacion.entrega
     revision = RevisionIA(
@@ -102,6 +109,7 @@ def revisar(db: Session, evaluacion: Evaluacion, cliente=None) -> RevisionIA:
     ]
 
     datos = None
+    motivo_sin_modelo = "no hay modelo de lenguaje configurado"
     if cliente.disponible:
         reto = entrega.participacion.reto
         pruebas = [
@@ -110,8 +118,8 @@ def revisar(db: Session, evaluacion: Evaluacion, cliente=None) -> RevisionIA:
             for r in evaluacion.resultados
         ]
         mensaje = (
-            f"Reto: {reto.titulo}\nEnunciado: {reto.descripcion_publica[:1500]}\n"
-            f"Criterios: {reto.criterios_aceptacion[:800]}\n\n"
+            f"Reto: {reto.titulo}\nEnunciado: {(reto.descripcion_publica or '')[:1500]}\n"
+            f"Criterios: {(reto.criterios_aceptacion or '')[:800]}\n\n"
             f"Dictamen de las pruebas automaticas: {evaluacion.dictamen}\n" + "\n".join(pruebas) + "\n\n"
             f"Metricas estaticas medidas: {json.dumps(estatico.metricas, ensure_ascii=False)}\n"
             f"Diagnosticos estaticos: {json.dumps([d.a_dict() for d in estatico.diagnosticos][:15], ensure_ascii=False)}\n\n"
@@ -120,7 +128,8 @@ def revisar(db: Session, evaluacion: Evaluacion, cliente=None) -> RevisionIA:
         try:
             datos = cliente.json(INSTRUCCIONES, mensaje, max_tokens=1500)
         except Exception as error:  # noqa: BLE001 -- el juez no puede tumbar la evaluacion
-            log.warning("el juez IA no respondio", extra={"causa": type(error).__name__})
+            motivo_sin_modelo = f"el modelo no respondio ({str(error)[:160] or type(error).__name__})"
+            log.warning("el juez IA no respondio", extra={"causa": motivo_sin_modelo})
             datos = None
 
     if datos:
@@ -157,8 +166,8 @@ def revisar(db: Session, evaluacion: Evaluacion, cliente=None) -> RevisionIA:
             [d.mensaje + " " + d.pista for d in estatico.diagnosticos][:4], ensure_ascii=False
         )
         revision.resumen = (
-            "Revision sin modelo de lenguaje: los puntajes salen de metricas estaticas del codigo "
-            "(tamano de funciones, complejidad, reglas de riesgo y presencia de pruebas)."
+            f"Revision sin modelo de lenguaje ({motivo_sin_modelo}): los puntajes salen de metricas "
+            "estaticas del codigo (tamano de funciones, complejidad, reglas de riesgo y presencia de pruebas)."
         )
         revision.puntaje_global = _global(dimensiones)
 

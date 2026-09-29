@@ -81,6 +81,26 @@ def revision_ia(evaluacion_id: uuid.UUID, db: Session = Depends(get_db), actor: 
     return juez_ia.a_dict(revision)
 
 
+@router.post("/evaluaciones/{evaluacion_id}/revision-ia", tags=["ia"])
+def reintentar_revision_ia(
+    evaluacion_id: uuid.UUID, db: Session = Depends(get_db), actor: Usuario = Depends(usuario_actual)
+):
+    """Vuelve a pedir la revision al modelo cuando quedo solo con metricas estaticas.
+
+    No cambia el dictamen ni crea una evaluacion nueva. Una revision ya hecha por el modelo se
+    devuelve tal cual.
+    """
+    evaluacion = db.get(Evaluacion, evaluacion_id)
+    if evaluacion is None:
+        raise ErrorDominio("EVALUACION_NO_ENCONTRADA", "No existe esa evaluacion.", http=404)
+    seguridad.participacion_propia(db, actor, evaluacion.entrega.participacion_id)
+    if evaluacion.dictamen is None:
+        raise ErrorDominio("EVALUACION_SIN_DICTAMEN", "La evaluacion aun no termina o cerro sin dictamen.", http=409)
+    revision = juez_ia.revisar(db, evaluacion, reintentar=True)
+    db.commit()
+    return juez_ia.a_dict(revision)
+
+
 # ------------------------------------------------------------------ defensa
 
 

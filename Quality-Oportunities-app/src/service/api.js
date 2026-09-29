@@ -180,6 +180,9 @@ export const consultarTutor = (participacionId, pregunta) =>
   });
 
 export const revisionIA = (evaluacionId) => peticion(`/evaluaciones/${evaluacionId}/revision-ia`);
+/** Vuelve a pedir la revision al modelo si quedo solo con metricas estaticas. */
+export const reintentarRevisionIA = (evaluacionId) =>
+  peticion(`/evaluaciones/${evaluacionId}/revision-ia`, { metodo: 'POST' });
 
 export const iniciarDefensa = (entregaId) =>
   peticion(`/entregas/${entregaId}/defensas`, { metodo: 'POST' });

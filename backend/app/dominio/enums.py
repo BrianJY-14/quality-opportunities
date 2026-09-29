@@ -53,6 +53,9 @@ class EstadoEvaluacion(StrEnum):
 class Dictamen(StrEnum):
     APROBADO = "APROBADO"
     NO_APROBADO = "NO_APROBADO"
+    # Ninguna comprobacion obligatoria llego a ejecutarse (p. ej. el reto no define su codigo).
+    # No es un veredicto sobre la solucion: no aprueba, pero tampoco se presenta como desaprobacion.
+    NO_EVALUABLE = "NO_EVALUABLE"
 
 
 class CondicionEjecucion(StrEnum):

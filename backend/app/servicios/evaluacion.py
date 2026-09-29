@@ -309,20 +309,26 @@ def _dictaminar(pruebas: list, resultados: list) -> str | None:
     """RN-EVAL-03: aprobar exige completar la bateria certificable y satisfacer todas las
     pruebas obligatorias.
 
-    Devuelve `None` cuando alguna comprobacion fallo por el entorno: eso no es un veredicto
-    sobre la solucion y quien llama lo traduce en ERROR_TECNICO. Una comprobacion que
-    sencillamente no se ejecuto (`NO_EJECUTADA`) si desaprueba: la bateria quedo incompleta,
-    pero la causa no es de infraestructura.
+    - `None`: alguna comprobacion fallo por el entorno. No es un veredicto sobre la solucion y
+      quien llama lo traduce en ERROR_TECNICO.
+    - NO_APROBADO: una prueba obligatoria SE EJECUTO y no se cumplio.
+    - NO_EVALUABLE: ninguna obligatoria fallo, pero alguna no llego a ejecutarse (por ejemplo, el
+      reto no define su codigo). "No ejecutada" no es "no cumplida": no aprueba ni certifica, pero
+      tampoco se presenta al estudiante como desaprobacion.
     """
     por_prueba = {r.prueba_id: r for r in resultados}
 
     if any(r.condicion_ejecucion == CondicionEjecucion.ERROR_TECNICO for r in resultados):
         return None
-    if any(p.id not in por_prueba for p in pruebas):
-        return Dictamen.NO_APROBADO  # bateria incompleta
-    if any(r.condicion_ejecucion != CondicionEjecucion.EJECUTADA for r in resultados):
+
+    obligatorias = [p for p in pruebas if p.obligatoria]
+    ejecutada = lambda p: p.id in por_prueba and por_prueba[p.id].condicion_ejecucion == CondicionEjecucion.EJECUTADA  # noqa: E731
+
+    if any(ejecutada(p) and not por_prueba[p.id].aprobada for p in obligatorias):
         return Dictamen.NO_APROBADO
-    if any(not por_prueba[p.id].aprobada for p in pruebas if p.obligatoria):
+    if not all(ejecutada(p) for p in pruebas):
+        return Dictamen.NO_EVALUABLE
+    if any(not por_prueba[p.id].aprobada for p in obligatorias):
         return Dictamen.NO_APROBADO
     return Dictamen.APROBADO
 

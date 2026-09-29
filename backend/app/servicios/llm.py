@@ -75,6 +75,12 @@ class ClienteLLM:
                 ultimo_error = f"HTTP {r.status_code}"
                 time.sleep(2.0)
                 continue
+            if r.status_code == 400 and "json_validate_failed" in r.text and intento == 0:
+                # Groq rechaza con 400 la salida del modo JSON si el modelo la trunca o la rompe.
+                # Se reintenta sin el modo estricto: `extraer_json` recupera el objeto del texto.
+                ultimo_error = "HTTP 400 json_validate_failed"
+                cuerpo.pop("response_format", None)
+                continue
             if r.status_code >= 400:
                 # El cuerpo de error del proveedor puede ser util, pero nunca incluye la clave.
                 raise FalloLLM(f"HTTP {r.status_code}: {r.text[:200]}")

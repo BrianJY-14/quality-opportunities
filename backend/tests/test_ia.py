@@ -461,3 +461,64 @@ def test_cliente_llm_arma_la_peticion_y_reintenta_un_429(monkeypatch):
     assert cuerpo["response_format"] == {"type": "json_object"}
     assert cabeceras["Authorization"] == "Bearer gsk_clave"
     assert c.etiqueta == "groq.com:llama-3.3-70b-versatile"
+
+
+def test_cliente_llm_reintenta_sin_modo_json_si_groq_lo_rechaza(monkeypatch):
+    import httpx
+
+    cuerpos = []
+
+    def falso_post(url, json, headers, timeout):
+        cuerpos.append(dict(json))
+        if len(cuerpos) == 1:
+            return httpx.Response(400, text='{"error":{"code":"json_validate_failed"}}')
+        return httpx.Response(200, json={"choices": [{"message": {"content": 'Aqui va: {"ok": true}'}}]})
+
+    monkeypatch.setattr(httpx, "post", falso_post)
+    c = llm.ClienteLLM("gsk_clave", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile")
+    assert c.json("sistema JSON", "usuario") == {"ok": True}
+    assert "response_format" in cuerpos[0] and "response_format" not in cuerpos[1]
+
+
+def test_juez_ia_guarda_el_motivo_y_se_puede_reintentar(cliente, estudiante):
+    caido = LLMDoble(fallar=True)
+    llm.establecer_cliente(caido)
+    try:
+        token = estudiante()
+        _, pid = _participar(cliente, token, "Juez que se reintenta")
+        _guardar(cliente, token, pid, CODIGO)
+        commit_que_aprueba(cliente, token, pid)
+        entrega = cliente.get(f"/api/v1/participaciones/{pid}/entregas", headers=auth(token)).json()[0]
+        ev_id = entrega["evaluaciones"][0]
+        rev = cliente.get(f"/api/v1/evaluaciones/{ev_id}/revision-ia", headers=auth(token)).json()
+        assert rev["estado"] == "SOLO_ESTATICA" and "caido" in rev["resumen"]
+
+        llm.establecer_cliente(LLMDoble())
+        r = cliente.post(f"/api/v1/evaluaciones/{ev_id}/revision-ia", headers=auth(token))
+        assert r.status_code == 200, r.text
+        assert r.json()["estado"] == "COMPLETADA"
+        # Una revision completada no se rehace.
+        llm.establecer_cliente(caido)
+        again = cliente.post(f"/api/v1/evaluaciones/{ev_id}/revision-ia", headers=auth(token)).json()
+        assert again["estado"] == "COMPLETADA"
+    finally:
+        llm.establecer_cliente(None)
+
+
+def test_dictamen_distingue_no_ejecutada_de_no_cumplida():
+    from types import SimpleNamespace as N
+
+    from app.dominio.enums import CondicionEjecucion as C
+    from app.servicios.evaluacion import _dictaminar
+
+    p1, p2 = N(id=1, obligatoria=True), N(id=2, obligatoria=False)
+    ok = lambda i: N(prueba_id=i, condicion_ejecucion=C.EJECUTADA, aprobada=True)  # noqa: E731
+    mal = lambda i: N(prueba_id=i, condicion_ejecucion=C.EJECUTADA, aprobada=False)  # noqa: E731
+    sin = lambda i: N(prueba_id=i, condicion_ejecucion=C.NO_EJECUTADA, aprobada=None)  # noqa: E731
+
+    assert _dictaminar([p1, p2], [sin(1), sin(2)]) == "NO_EVALUABLE"
+    assert _dictaminar([p1, p2], [ok(1), sin(2)]) == "NO_EVALUABLE"
+    assert _dictaminar([p1, p2], [mal(1), sin(2)]) == "NO_APROBADO"
+    assert _dictaminar([p1, p2], [ok(1), mal(2)]) == "APROBADO"
+    assert _dictaminar([p1, p2], [ok(1), ok(2)]) == "APROBADO"
+    assert _dictaminar([p1], []) == "NO_EVALUABLE"
